@@ -1,0 +1,12 @@
+{
+  "name": "vidcall",
+  "version": "1.0.0",
+  "description": "Zero-login group video call. Open the URL, you're in.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
