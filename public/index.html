@@ -89,16 +89,16 @@
 <script>
 const RTC_CONFIG = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
     {
       urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp'
+        'turn:global.relay.metered.ca:80',
+        'turn:global.relay.metered.ca:80?transport=tcp',
+        'turn:global.relay.metered.ca:443',
+        'turns:global.relay.metered.ca:443?transport=tcp'
       ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
+      username: '80271944781ed1e935af3008',
+      credential: 'Fa+RgcUR8iBUR0/o'
     }
   ]
 };
@@ -181,6 +181,8 @@ function signal(to, data) {
   ws.send(JSON.stringify({ type: 'signal', to, data }));
 }
 
+const pendingCands = new Map(); // peerId -> candidates that arrived before the SDP
+
 async function handleSignal(from, data) {
   let pc = pcs.get(from);
   if (!pc) pc = makePeer(from, false);
@@ -190,8 +192,18 @@ async function handleSignal(from, data) {
       await pc.setLocalDescription(await pc.createAnswer());
       signal(from, { sdp: pc.localDescription });
     }
+    // flush candidates that arrived before the description was set
+    for (const c of pendingCands.get(from) || []) {
+      try { await pc.addIceCandidate(c); } catch (e) { console.warn('ICE add failed', e); }
+    }
+    pendingCands.delete(from);
   } else if (data.candidate) {
-    try { await pc.addIceCandidate(data.candidate); } catch {}
+    if (!pc.remoteDescription) {
+      if (!pendingCands.has(from)) pendingCands.set(from, []);
+      pendingCands.get(from).push(data.candidate);
+    } else {
+      try { await pc.addIceCandidate(data.candidate); } catch (e) { console.warn('ICE add failed', e); }
+    }
   }
 }
 
